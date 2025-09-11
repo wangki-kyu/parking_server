@@ -1,13 +1,8 @@
 use std::{env, process};
 use std::time::Duration;
 use serde::Serialize;
-use tokio::sync::mpsc::UnboundedSender;
-use crate::message::{AsyncMessage, FeelInfoRequest, OcrRequest, SubMessage};
-
-const OCR_REQ_TOPIC: &str = "parking/request/ocr";
-const FEEL_INFO_REQ_TOPIC: &str = "parking/request/fee_info";
-const OCR_RES_TOPIC: &str = "parking/response/ocr";
-const FEEL_INFO_RES_TOPIC: &str = "parking/response/ocr";
+use tokio::sync::mpsc::{UnboundedSender, UnboundedReceiver};
+use crate::message::{AsyncMessage, FeelInfoSub, OcrSub, PubMessage, SubMessage};
 
 const SUB_TOPIC: &[&str] = &["parking/request/#"];
 const QOS: &[i32] = &[1];
@@ -16,7 +11,7 @@ struct MqttClient {
 
 }
 
-pub async fn run_mqtt(host: String, tx: UnboundedSender<AsyncMessage>) {
+pub async fn run_mqtt(host: String, tx: UnboundedSender<AsyncMessage>, rx_pub: UnboundedReceiver<PubMessage>) {
     // parking/request/ocr sub
     // parking/request/feelinfo sub
 
@@ -25,7 +20,7 @@ pub async fn run_mqtt(host: String, tx: UnboundedSender<AsyncMessage>) {
 
     tokio::join!(
         run_subscribe(host.clone(), tx),
-        run_publish(),
+        run_publish(host, rx_pub),
     );
 }
 
@@ -103,12 +98,12 @@ async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) {
             let sub_message = match *topic_last_str {
                 "ocr" => {
                     println!("ocr!");
-                    let req: OcrRequest  = serde_json::from_str(&msg.payload_str().to_string()).unwrap();
+                    let req: OcrSub = serde_json::from_str(&msg.payload_str().to_string()).unwrap();
                     Some(SubMessage::OcrRequest(req))
                 },
                 "feel_info" => {
                     println!("feel_info");
-                    let req: FeelInfoRequest  = serde_json::from_str(&msg.payload_str().to_string()).unwrap();
+                    let req: FeelInfoSub = serde_json::from_str(&msg.payload_str().to_string()).unwrap();
                     Some(SubMessage::FeelInfoRequest(req))
                 },
                 _ => {
@@ -132,8 +127,31 @@ async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) {
     join.await.unwrap();
 }
 
-async fn run_publish() {
+async fn run_publish(host: String, mut rx: UnboundedReceiver<PubMessage>) -> anyhow::Result<()> {
+    let cli = paho_mqtt::AsyncClient::new(host)?;
 
+    loop {
+        let cli_clone = cli.clone();
+        for msg in rx.recv().await.iter() {
+            match msg {
+                PubMessage::OcrPub(ocr_pub) => {
+                    // OcrPub
+                    cli_clone.connect(None).await?;
+                    let encoded = serde_json::to_string(ocr_pub)?;
+                    let msg = paho_mqtt::Message::new("parking/response/ocr", encoded, paho_mqtt::QOS_1);
+                    cli.publish(msg).await?;
+
+                    cli.disconnect(None).await?;
+                }
+                PubMessage::FeelInfoPub(feel_info_pub) => {
+                    // FeelInfoPub
+
+                }
+            }
+        }
+    }
+
+    Ok(())
 }
 
 async fn subscribe_topic(topic: &str) {

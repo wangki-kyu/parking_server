@@ -3,12 +3,13 @@ pub mod message;
 
 use std::{env, process};
 use std::time::Duration;
-use tokio::join;
-use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::task::spawn_blocking;
 use mqtt::run_mqtt;
 use message::SubMessage;
 use message::AsyncMessage;
+use crate::message::AsyncMessage::PubMesage;
+use crate::message::{OcrPub, PubMessage};
 
 // The topics to which we subscribe.
 const TOPICS: &[&str] = &["test/#", "hello"];
@@ -19,15 +20,18 @@ async fn main() {
         .nth(1)
         .unwrap_or_else(|| "mqtt://localhost:1883".to_string());
 
+    // create sub channel
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<AsyncMessage>();
+    // create pub channel
+    let (tx_pub, mut rx_pub) = tokio::sync::mpsc::unbounded_channel::<PubMessage>();
 
     tokio::join!(
-        run_mqtt(host, tx),
-        run_async_task(rx),
+        run_mqtt(host, tx, rx_pub),
+        run_async_task(rx, tx_pub),
     );
 }
 
-async fn run_async_task(mut rx: UnboundedReceiver<AsyncMessage>) {
+                        async fn run_async_task(mut rx: UnboundedReceiver<AsyncMessage>, pub_tx: UnboundedSender<PubMessage>) {
     // async worker
     let _ = tokio::spawn(async move {
         println!("start async receiver");
@@ -37,17 +41,25 @@ async fn run_async_task(mut rx: UnboundedReceiver<AsyncMessage>) {
                 continue;
             };
 
+            // clone tx
+            let clone_tx_pub = pub_tx.clone();
+
             match msg {
                 AsyncMessage::SubMessage(req) => {
                     match req {
                         SubMessage::OcrRequest(ocr) => {
                             println!("ocr msg recv");
+                            let data = "kimwoojun".to_string();
+                            let ocr_message = OcrPub::new(123123, data.into_bytes());
+
+                            clone_tx_pub.send(PubMessage::OcrPub(ocr_message)).unwrap();
                         }
                         SubMessage::FeelInfoRequest(feel_info) => {
                             println!("feel_info msg recv");
                         }
                     }
                 }
+                _ => {}
             }
         }
         while let Some(msg) = rx.recv().await {
