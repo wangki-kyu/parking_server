@@ -16,24 +16,24 @@ pub enum PubMessage {
 }
 
 // sub message 정의
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct OcrSub {
-    camera_id: String,
-    time_stamp: u64,
-    img: String,
+    pub camera_id: String,
+    pub time_stamp: u64,
+    pub img: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct FeelInfoSub {
-    license_plate: String,
-    time_stamp: u64,
+    pub license_plate: String,
+    pub time_stamp: u64,
 }
 
 // pub message 정의
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct OcrPub {
-    time_stamp: u64,
-    ocr_data: Vec<u8>,
+    pub time_stamp: u64,
+    pub ocr_data: Vec<u8>,
 }
 
 impl OcrPub {
@@ -45,9 +45,10 @@ impl OcrPub {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct FeelInfoPub {
-
+    license_plate: String,
+    timestamp: u64,
 }
 
 

@@ -136,6 +136,7 @@ async fn run_publish(host: String, mut rx: UnboundedReceiver<PubMessage>) -> any
             match msg {
                 PubMessage::OcrPub(ocr_pub) => {
                     // OcrPub
+                    println!("ocr_pub: {:?}", ocr_pub);
                     cli_clone.connect(None).await?;
                     let encoded = serde_json::to_string(ocr_pub)?;
                     let msg = paho_mqtt::Message::new("parking/response/ocr", encoded, paho_mqtt::QOS_1);

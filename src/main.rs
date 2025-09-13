@@ -1,18 +1,31 @@
 mod mqtt;
 pub mod message;
+mod ocr;
 
 use std::{env, process};
 use std::time::Duration;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::error::SendError;
 use tokio::task::spawn_blocking;
 use mqtt::run_mqtt;
 use message::SubMessage;
 use message::AsyncMessage;
-use crate::message::AsyncMessage::PubMesage;
 use crate::message::{OcrPub, PubMessage};
+use ocr::run_ocr_task;
 
-// The topics to which we subscribe.
-const TOPICS: &[&str] = &["test/#", "hello"];
+struct AsyncTxBundle {
+    tx_pub: UnboundedSender<PubMessage>,
+    tx_ocr: UnboundedSender<String>,
+}
+
+impl AsyncTxBundle {
+    fn new(tx_pub: UnboundedSender<PubMessage>, tx_ocr: UnboundedSender<String>) -> Self {
+        Self {
+            tx_pub,
+            tx_ocr,
+        }
+    }
+}
 
 #[tokio::main]
 async fn main() {
@@ -24,14 +37,19 @@ async fn main() {
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<AsyncMessage>();
     // create pub channel
     let (tx_pub, mut rx_pub) = tokio::sync::mpsc::unbounded_channel::<PubMessage>();
+    // create ocr channel
+    let (tx_ocr, mut rx_ocr) = tokio::sync::mpsc::unbounded_channel::<String>();    // 추후에 bytes로 변경될 수 있음.
 
+    let tx_pub_cloned = tx_pub.clone();
+    let async_tx_bundle = AsyncTxBundle::new(tx_pub.clone(), tx_ocr.clone());
     tokio::join!(
         run_mqtt(host, tx, rx_pub),
-        run_async_task(rx, tx_pub),
+        run_async_task(rx, async_tx_bundle),
+        run_ocr_task(rx_ocr, tx_pub_cloned),
     );
 }
 
-                        async fn run_async_task(mut rx: UnboundedReceiver<AsyncMessage>, pub_tx: UnboundedSender<PubMessage>) {
+async fn run_async_task(mut rx: UnboundedReceiver<AsyncMessage>, tx_bundle: AsyncTxBundle) {
     // async worker
     let _ = tokio::spawn(async move {
         println!("start async receiver");
@@ -42,17 +60,20 @@ async fn main() {
             };
 
             // clone tx
-            let clone_tx_pub = pub_tx.clone();
+            let clone_tx_pub = tx_bundle.tx_pub.clone();
+            let tx_ocr_clone = tx_bundle.tx_ocr.clone();
 
             match msg {
                 AsyncMessage::SubMessage(req) => {
                     match req {
                         SubMessage::OcrRequest(ocr) => {
-                            println!("ocr msg recv");
-                            let data = "kimwoojun".to_string();
-                            let ocr_message = OcrPub::new(123123, data.into_bytes());
-
-                            clone_tx_pub.send(PubMessage::OcrPub(ocr_message)).unwrap();
+                            // ocr ?
+                            match tx_ocr_clone.send(ocr.camera_id) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    eprintln!("{}", e);
+                                }
+                            }
                         }
                         SubMessage::FeelInfoRequest(feel_info) => {
                             println!("feel_info msg recv");
@@ -66,11 +87,6 @@ async fn main() {
 
         }
     }).await;
-}
-
-async fn ocr_task() {
-    // todo here ..
-    println!("ocr processing,,,");
 }
 
 // ------- 번호판 -------
