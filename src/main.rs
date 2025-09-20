@@ -1,6 +1,7 @@
 mod mqtt;
 pub mod message;
 mod ocr;
+mod car;
 
 use std::{env, process};
 use std::time::Duration;
@@ -12,6 +13,7 @@ use message::SubMessage;
 use message::AsyncMessage;
 use crate::message::{OcrPub, PubMessage};
 use ocr::run_ocr_task;
+
 
 struct AsyncTxBundle {
     tx_pub: UnboundedSender<PubMessage>,
@@ -75,7 +77,11 @@ async fn run_async_task(mut rx: UnboundedReceiver<AsyncMessage>, tx_bundle: Asyn
                                 }
                             }
                         }
-                        SubMessage::FeelInfoRequest(feel_info) => {
+                        SubMessage::FeelInfoRequest(fee_info) => {
+                            // 1. ocr 처리 
+                            // 2. ocr 에서 mqtt pub으로 번호를 보내주면 
+                            // 정산 처리 관련 함수를 호출 해준다.
+                            
                             println!("feel_info msg recv");
                         }
                     }
@@ -83,9 +89,7 @@ async fn run_async_task(mut rx: UnboundedReceiver<AsyncMessage>, tx_bundle: Asyn
                 _ => {}
             }
         }
-        while let Some(msg) = rx.recv().await {
 
-        }
     }).await;
 }
 

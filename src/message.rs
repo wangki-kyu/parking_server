@@ -12,44 +12,61 @@ pub enum SubMessage {
 
 pub enum PubMessage {
     OcrPub(OcrPub),
-    FeelInfoPub(FeelInfoPub),
+    FeelInfoPub(FeeInfoPub),
 }
 
 // sub message 정의
 #[derive(Deserialize, Debug)]
 pub struct OcrSub {
     pub camera_id: String,
-    pub time_stamp: u64,
+    pub timestamp: i64,
     pub img: String,
 }
 
+// todo 필드 변경 필요 
 #[derive(Deserialize, Debug)]
 pub struct FeelInfoSub {
     pub license_plate: String,
-    pub time_stamp: u64,
+    pub entry_time: i64,
+    pub exit_time: i64,
+    pub fee: u64,
+    pub is_paid: bool,
+    pub discount_applied: String
 }
 
-// pub message 정의
+// pub message 정의 
+#[derive(Serialize, Debug, Default)]
+pub struct FeeInfoPub {
+    pub license_plate: String,
+    pub entry_time: i64,
+    pub exit_time: i64,
+    pub fee: u64,
+    pub is_paid: bool,
+    pub discount_applied: String,
+}
+
 #[derive(Serialize, Debug)]
 pub struct OcrPub {
-    pub time_stamp: u64,
-    pub ocr_data: Vec<u8>,
+    pub success: bool,
+    pub license_plate: String,
+    pub accuracy: f64,
+    pub request_timestamp: u64,
 }
 
 impl OcrPub {
-    pub fn new(time_stamp: u64, ocr_data: Vec<u8>) -> Self {
-        OcrPub {
-            time_stamp,
-            ocr_data,
+    pub fn new(success: bool, license_plate: String, accuracy: f64, request_timestamp: u64) -> Self {
+        Self {
+            success,
+            license_plate,
+            accuracy,
+            request_timestamp,
         }
     }
 }
 
-#[derive(Serialize, Debug)]
-pub struct FeelInfoPub {
-    license_plate: String,
-    timestamp: u64,
-}
+
+
+
 
 
 

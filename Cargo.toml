@@ -2,10 +2,23 @@
 name = "parking_server"
 version = "0.1.0"
 edition = "2024"
+default-run = "parking_server"
 
 [dependencies]
 anyhow = "1.0.99"
+chrono = "0.4.42"
+once_cell = "1.21.3"
 paho-mqtt = "0.13.3"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.143"
+tesseract = "0.15.2"
 tokio = { version = "1.47.1", features = ["full"] }
+
+
+[[bin]]
+name = "ocr_test"
+path = "src/bin/ocr_test.rs"
+
+[[bin]]
+name = "yolo_test"
+path = "src/bin/yolo_test.rs"

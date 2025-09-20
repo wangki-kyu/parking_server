@@ -1,8 +1,11 @@
+use std::collections::HashMap;
 use std::{env, process};
 use std::time::Duration;
 use serde::Serialize;
 use tokio::sync::mpsc::{UnboundedSender, UnboundedReceiver};
+use tokio::sync::Mutex;
 use crate::message::{AsyncMessage, FeelInfoSub, OcrSub, PubMessage, SubMessage};
+use crate::car::add_car;
 
 const SUB_TOPIC: &[&str] = &["parking/request/#"];
 const QOS: &[i32] = &[1];
@@ -90,6 +93,7 @@ async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) {
             };
             let topic_split_vec = msg.topic().split("/").collect::<Vec<&str>>();
 
+            // last topic str parsing 
             let Some(topic_last_str) =  topic_split_vec.last() else {
                 println!("wrong topic!");
                 continue;
@@ -101,8 +105,9 @@ async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) {
                     let req: OcrSub = serde_json::from_str(&msg.payload_str().to_string()).unwrap();
                     Some(SubMessage::OcrRequest(req))
                 },
-                "feel_info" => {
-                    println!("feel_info");
+                #[allow(non_snake_case)]
+                "feeinfo" => {
+                    println!("fee_info");
                     let req: FeelInfoSub = serde_json::from_str(&msg.payload_str().to_string()).unwrap();
                     Some(SubMessage::FeelInfoRequest(req))
                 },
@@ -133,10 +138,14 @@ async fn run_publish(host: String, mut rx: UnboundedReceiver<PubMessage>) -> any
     loop {
         let cli_clone = cli.clone();
         for msg in rx.recv().await.iter() {
-            match msg {
+                match msg {
                 PubMessage::OcrPub(ocr_pub) => {
                     // OcrPub
                     println!("ocr_pub: {:?}", ocr_pub);
+
+                    // 인메로리 차량 데이터 추가 
+                    add_car(ocr_pub.license_plate.clone()).await;
+
                     cli_clone.connect(None).await?;
                     let encoded = serde_json::to_string(ocr_pub)?;
                     let msg = paho_mqtt::Message::new("parking/response/ocr", encoded, paho_mqtt::QOS_1);
@@ -170,3 +179,7 @@ async fn publish_data_to_topic(topic: &str) {
 
 
 
+
+
+// hashmap 구조 
+// 차량 번호 키 - 
