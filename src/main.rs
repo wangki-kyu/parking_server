@@ -33,7 +33,7 @@ impl AsyncTxBundle {
 async fn main() {
     let host = env::args()
         .nth(1)
-        .unwrap_or_else(|| "mqtt://localhost:1883".to_string());
+        .unwrap_or_else(|| "mqtt://54.180.132.92:1883".to_string());
 
     // create sub channel
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<AsyncMessage>();

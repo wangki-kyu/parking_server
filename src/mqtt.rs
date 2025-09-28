@@ -4,7 +4,7 @@ use std::time::Duration;
 use serde::Serialize;
 use tokio::sync::mpsc::{UnboundedSender, UnboundedReceiver};
 use tokio::sync::Mutex;
-use crate::message::{AsyncMessage, FeelInfoSub, OcrSub, PubMessage, SubMessage};
+use crate::message::{AsyncMessage, FeeInfoSub, OcrSub, PubMessage, SubMessage};
 use crate::car::add_car;
 
 const SUB_TOPIC: &[&str] = &["parking/request/#"];
@@ -108,7 +108,7 @@ async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) {
                 #[allow(non_snake_case)]
                 "feeinfo" => {
                     println!("fee_info");
-                    let req: FeelInfoSub = serde_json::from_str(&msg.payload_str().to_string()).unwrap();
+                    let req: FeeInfoSub = serde_json::from_str(&msg.payload_str().to_string()).unwrap();
                     Some(SubMessage::FeelInfoRequest(req))
                 },
                 _ => {

@@ -12,3 +12,7 @@
 ## 2025-09-13
 `+` Addition: 차량 데이터를 static으로 가지고 있도록 추가 
 `+` Addition: 정산 기능 추가 
+
+## 2025-09-28
+`+` Addition: Dockerfile 추가
+`+` Addition: ./py/ocr_script.py 추가

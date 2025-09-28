@@ -7,7 +7,7 @@ pub enum AsyncMessage {
 
 pub enum SubMessage {
     OcrRequest(OcrSub),
-    FeelInfoRequest(FeelInfoSub),
+    FeelInfoRequest(FeeInfoSub),
 }
 
 pub enum PubMessage {
@@ -25,7 +25,7 @@ pub struct OcrSub {
 
 // todo 필드 변경 필요 
 #[derive(Deserialize, Debug)]
-pub struct FeelInfoSub {
+pub struct FeeInfoSub {
     pub license_plate: String,
     pub entry_time: i64,
     pub exit_time: i64,
