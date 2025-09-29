@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::{env, process};
 use std::time::Duration;
+use anyhow::anyhow;
 use serde::Serialize;
 use tokio::sync::mpsc::{UnboundedSender, UnboundedReceiver};
 use tokio::sync::Mutex;
@@ -21,17 +22,30 @@ pub async fn run_mqtt(host: String, tx: UnboundedSender<AsyncMessage>, rx_pub: U
     // parking/response/ocr pub
     // parking/response/feelinfo pub
 
-    tokio::join!(
+    match tokio::join!(
         run_subscribe(host.clone(), tx),
         run_publish(host, rx_pub),
-    );
+    ) {
+        (Ok(_), Ok(_)) => {
+
+        },
+        (Ok(_), Err(e)) => {
+            println!("run_publish error, e: {}", e);
+        },
+        (Err(e), Ok(_)) => {
+            println!("run_subscribe error, e: {}", e);
+        },
+        (Err(_), Err(_)) => {
+            println!("all error");
+        },
+    }
 }
 
 fn init_mqtt_clinet() {
 
 }
 
-async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) {
+async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) -> anyhow::Result<()> {
     // client 생성!
 
     let create_opts = paho_mqtt::CreateOptionsBuilder::new_v3()
@@ -43,6 +57,8 @@ async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) {
         println!("Error creating the client: {:?}", e);
         process::exit(1);
     });
+
+    println!("1");
 
     let join = tokio::spawn(async move {
         let stream = cli.get_stream(25);
@@ -61,13 +77,31 @@ async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) {
             // .will_message(lwt)
             .finalize();
 
+        println!("2");
+
         // Make the connection to the broker
-        cli.connect(conn_opts).await.unwrap();
+        match cli.connect(conn_opts).await {
+            Ok(_) => {
+                println!("connect success!!");
+
+            },
+            Err(e) => {
+                eprintln!("{}", e);
+                // tokio::time::sleep(Duration::from_secs(60)).await;
+                // panic!("fail to connect mqtt");
+                return Err(anyhow!("fail to connecto mqtt"));
+            },
+        }
+
+        println!("3");
 
         cli.subscribe_many(SUB_TOPIC, QOS).await.unwrap();
 
         // Just loop on incoming messages.
-        println!("Waiting for messages...");
+        
+
+        // let mut tmp = String::new();
+        // std::io::stdin().read_line(&mut tmp).unwrap();
 
         let mut rconn_attempt: usize = 0;
 
@@ -78,6 +112,7 @@ async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) {
 
 
         while let Ok(msg_opt) = stream.recv().await {
+            println!("Waiting for messages...");
             let cloned_tx = tx.clone();
             let Some(msg) = msg_opt else {
                 // A "None" means we were disconnected. Try to reconnect...
@@ -98,6 +133,8 @@ async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) {
                 println!("wrong topic!");
                 continue;
             };
+
+            println!("sub start!");
 
             let sub_message = match *topic_last_str {
                 "ocr" => {
@@ -127,9 +164,13 @@ async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) {
                  }
             }
         }
+
+        Ok(())
     });
 
-    join.await.unwrap();
+    let _ = join.await?;
+    
+    Ok(())
 }
 
 async fn run_publish(host: String, mut rx: UnboundedReceiver<PubMessage>) -> anyhow::Result<()> {
@@ -143,8 +184,12 @@ async fn run_publish(host: String, mut rx: UnboundedReceiver<PubMessage>) -> any
                     // OcrPub
                     println!("ocr_pub: {:?}", ocr_pub);
 
-                    // 인메로리 차량 데이터 추가 
-                    add_car(ocr_pub.license_plate.clone()).await;
+                    // 인메모리 차량 데이터 추가 
+                    if ocr_pub.gate_id == 0 && ocr_pub.success { 
+                        println!("car data save");
+                        add_car(ocr_pub.license_plate.clone()).await;
+                    }
+                    
 
                     cli_clone.connect(None).await?;
                     let encoded = serde_json::to_string(ocr_pub)?;
@@ -152,10 +197,14 @@ async fn run_publish(host: String, mut rx: UnboundedReceiver<PubMessage>) -> any
                     cli.publish(msg).await?;
 
                     cli.disconnect(None).await?;
+
+                    println!("finish to send!");
                 }
                 PubMessage::FeelInfoPub(feel_info_pub) => {
                     // FeelInfoPub
+                    
 
+                    // db 저장 및 인메모리 차량 데이터 삭제 
                 }
             }
         }

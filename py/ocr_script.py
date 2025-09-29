@@ -11,18 +11,22 @@ if len(sys.argv) < 2:
 image_path = sys.argv[1]
 # 인식할 언어를 설정합니다 (예: 한국어, 영어).
 # Dockerfile에서 EasyOCR을 설치했으므로 별도의 설치는 필요 없습니다.
-reader = easyocr.Reader(['ko', 'en'])
+reader = easyocr.Reader(['ko', 'en'], verbose=False)
 
-print(f"이미지 경로: {image_path}")
-print("--- OCR 결과 ---")
+# print(f"이미지 경로: {image_path}")
+# print("--- OCR 결과 ---")
 
 try:
     # OCR 실행
     # detail=0으로 설정하면 (bbox, text, confidence) 대신 text만 반환됩니다.
     result = reader.readtext(image_path, detail=0)
+    combined_text = ""
 
     for text in result:
-        print(text)
+        cleaned_text = text.replace(" ", "")
+        combined_text += cleaned_text
+        
+    print(combined_text)
 
 except Exception as e:
     print(f"OCR 실행 중 오류가 발생했습니다: {e}")

@@ -11,17 +11,17 @@ use tokio::task::spawn_blocking;
 use mqtt::run_mqtt;
 use message::SubMessage;
 use message::AsyncMessage;
-use crate::message::{OcrPub, PubMessage};
+use crate::message::{OcrPub, OcrSub, PubMessage};
 use ocr::run_ocr_task;
 
 
 struct AsyncTxBundle {
     tx_pub: UnboundedSender<PubMessage>,
-    tx_ocr: UnboundedSender<String>,
+    tx_ocr: UnboundedSender<OcrSub>,
 }
 
 impl AsyncTxBundle {
-    fn new(tx_pub: UnboundedSender<PubMessage>, tx_ocr: UnboundedSender<String>) -> Self {
+    fn new(tx_pub: UnboundedSender<PubMessage>, tx_ocr: UnboundedSender<OcrSub>) -> Self {
         Self {
             tx_pub,
             tx_ocr,
@@ -33,14 +33,15 @@ impl AsyncTxBundle {
 async fn main() {
     let host = env::args()
         .nth(1)
-        .unwrap_or_else(|| "mqtt://54.180.132.92:1883".to_string());
+        .unwrap_or_else(|| "mqtt://mosquitto:1883".to_string());
+        // .unwrap_or_else(|| "mqtt://localhost:1883".to_string());
 
     // create sub channel
-    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<AsyncMessage>();
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<AsyncMessage>();
     // create pub channel
-    let (tx_pub, mut rx_pub) = tokio::sync::mpsc::unbounded_channel::<PubMessage>();
+    let (tx_pub, rx_pub) = tokio::sync::mpsc::unbounded_channel::<PubMessage>();
     // create ocr channel
-    let (tx_ocr, mut rx_ocr) = tokio::sync::mpsc::unbounded_channel::<String>();    // 추후에 bytes로 변경될 수 있음.
+    let (tx_ocr, rx_ocr) = tokio::sync::mpsc::unbounded_channel::<OcrSub>();    // 추후에 bytes로 변경될 수 있음.
 
     let tx_pub_cloned = tx_pub.clone();
     let async_tx_bundle = AsyncTxBundle::new(tx_pub.clone(), tx_ocr.clone());
@@ -70,7 +71,7 @@ async fn run_async_task(mut rx: UnboundedReceiver<AsyncMessage>, tx_bundle: Asyn
                     match req {
                         SubMessage::OcrRequest(ocr) => {
                             // ocr ?
-                            match tx_ocr_clone.send(ocr.camera_id) {
+                            match tx_ocr_clone.send(ocr) {
                                 Ok(_) => {}
                                 Err(e) => {
                                     eprintln!("{}", e);

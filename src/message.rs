@@ -10,6 +10,7 @@ pub enum SubMessage {
     FeelInfoRequest(FeeInfoSub),
 }
 
+#[derive(Debug)]
 pub enum PubMessage {
     OcrPub(OcrPub),
     FeelInfoPub(FeeInfoPub),
@@ -18,7 +19,7 @@ pub enum PubMessage {
 // sub message 정의
 #[derive(Deserialize, Debug)]
 pub struct OcrSub {
-    pub camera_id: String,
+    pub gate_id: i32,
     pub timestamp: i64,
     pub img: String,
 }
@@ -47,6 +48,7 @@ pub struct FeeInfoPub {
 
 #[derive(Serialize, Debug)]
 pub struct OcrPub {
+    pub gate_id: i32,
     pub success: bool,
     pub license_plate: String,
     pub accuracy: f64,
@@ -54,8 +56,9 @@ pub struct OcrPub {
 }
 
 impl OcrPub {
-    pub fn new(success: bool, license_plate: String, accuracy: f64, request_timestamp: u64) -> Self {
+    pub fn new(gate_id: i32, success: bool, license_plate: String, accuracy: f64, request_timestamp: u64) -> Self {
         Self {
+            gate_id,
             success,
             license_plate,
             accuracy,
