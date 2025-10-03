@@ -14,5 +14,14 @@
 `+` Addition: 정산 기능 추가 
 
 ## 2025-09-28
-`+` Addition: Dockerfile 추가
-`+` Addition: ./py/ocr_script.py 추가
+`+` Addition: Dockerfile 추가  
+`+` Addition: ./py/ocr_script.py 추가  
+
+## 2025-09-29
+`+` Addition: ocr 과정 출력하지 않도록 설정  
+    파이썬에서 ocr 후 공백 삭제 후 출력  
+`-` Fix: `target`파일 삭제 경로 오류 수정  
+
+## 2025-10-04
+`+` Addition: tiberius example  
+`+` Addition: mssql db 연동

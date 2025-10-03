@@ -13,6 +13,9 @@ paho-mqtt = "0.13.3"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.143"
 tokio = { version = "1.47.1", features = ["full"] }
+tokio-util = { version = "0.7.16", features = ["compat"] }
+dotenvy = "0.15.7"
+tiberius = "0.12.3"
 
 
 [[bin]]
@@ -22,3 +25,7 @@ path = "src/bin/ocr_test.rs"
 [[bin]]
 name = "yolo_test"
 path = "src/bin/yolo_test.rs"
+
+[[bin]]
+name = "db_test"
+path = "src/bin/db_test.rs"
