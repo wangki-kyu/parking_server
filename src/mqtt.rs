@@ -5,8 +5,10 @@ use anyhow::anyhow;
 use serde::Serialize;
 use tokio::sync::mpsc::{UnboundedSender, UnboundedReceiver};
 use tokio::sync::Mutex;
+use crate::AsyncTxBundle;
 use crate::message::{AsyncMessage, FeeInfoSub, OcrSub, PubMessage, SubMessage};
 use crate::car::add_car;
+use crate::db::{insert_entry_car, DBMessage, InsertCarData};
 
 const SUB_TOPIC: &[&str] = &["parking/request/#"];
 const QOS: &[i32] = &[1];
@@ -15,7 +17,7 @@ struct MqttClient {
 
 }
 
-pub async fn run_mqtt(host: String, tx: UnboundedSender<AsyncMessage>, rx_pub: UnboundedReceiver<PubMessage>) {
+pub async fn run_mqtt(host: String, tx_bundle: AsyncTxBundle, rx_pub: UnboundedReceiver<PubMessage>) {
     // parking/request/ocr sub
     // parking/request/feelinfo sub
 
@@ -23,8 +25,8 @@ pub async fn run_mqtt(host: String, tx: UnboundedSender<AsyncMessage>, rx_pub: U
     // parking/response/feelinfo pub
 
     match tokio::join!(
-        run_subscribe(host.clone(), tx),
-        run_publish(host, rx_pub),
+        run_subscribe(host.clone(), tx_bundle.tx_async.clone()),
+        run_publish(host, rx_pub, tx_bundle.tx_db.clone()),
     ) {
         (Ok(_), Ok(_)) => {
 
@@ -58,8 +60,6 @@ async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) -> anyho
         process::exit(1);
     });
 
-    println!("1");
-
     let join = tokio::spawn(async move {
         let stream = cli.get_stream(25);
 
@@ -77,8 +77,6 @@ async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) -> anyho
             // .will_message(lwt)
             .finalize();
 
-        println!("2");
-
         // Make the connection to the broker
         match cli.connect(conn_opts).await {
             Ok(_) => {
@@ -92,8 +90,6 @@ async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) -> anyho
                 return Err(anyhow!("fail to connecto mqtt"));
             },
         }
-
-        println!("3");
 
         cli.subscribe_many(SUB_TOPIC, QOS).await.unwrap();
 
@@ -173,7 +169,7 @@ async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) -> anyho
     Ok(())
 }
 
-async fn run_publish(host: String, mut rx: UnboundedReceiver<PubMessage>) -> anyhow::Result<()> {
+async fn run_publish(host: String, mut rx: UnboundedReceiver<PubMessage>, tx_db: UnboundedSender<DBMessage>) -> anyhow::Result<()> {
     let cli = paho_mqtt::AsyncClient::new(host)?;
 
     loop {
@@ -184,13 +180,17 @@ async fn run_publish(host: String, mut rx: UnboundedReceiver<PubMessage>) -> any
                     // OcrPub
                     println!("ocr_pub: {:?}", ocr_pub);
 
-                    // 인메모리 차량 데이터 추가 
+                    // 인메모리 차량 데이터 추가 & db 추가
                     if ocr_pub.gate_id == 0 && ocr_pub.success { 
                         println!("car data save");
                         add_car(ocr_pub.license_plate.clone()).await;
+                        let entry_data = InsertCarData {
+                            license_plate: ocr_pub.license_plate.clone(),
+                            entry_time: ocr_pub.request_timestamp as i64,
+                        };
+                        tx_db.send(DBMessage::InsertCar(entry_data))?;
                     }
                     
-
                     cli_clone.connect(None).await?;
                     let encoded = serde_json::to_string(ocr_pub)?;
                     let msg = paho_mqtt::Message::new("parking/response/ocr", encoded, paho_mqtt::QOS_1);

@@ -16,6 +16,8 @@ tokio = { version = "1.47.1", features = ["full"] }
 tokio-util = { version = "0.7.16", features = ["compat"] }
 dotenvy = "0.15.7"
 tiberius = "0.12.3"
+bb8-tiberius = "0.16.0"
+bb8 = "0.9.0"
 
 
 [[bin]]
@@ -29,3 +31,7 @@ path = "src/bin/yolo_test.rs"
 [[bin]]
 name = "db_test"
 path = "src/bin/db_test.rs"
+
+[[bin]]
+name = "db_pool_test"
+path = "src/bin/db_pool_test.rs"

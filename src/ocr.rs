@@ -35,8 +35,6 @@ async fn call_ocr(ocr_sub: OcrSub, tx: UnboundedSender<PubMessage>) {
         .arg("/app/license_plates/target.jpg")
         .output().await.unwrap();
 
-    println!("hihii");
-
     let res_str = String::from_utf8(output.stdout).unwrap();
     println!("{}", res_str);
 

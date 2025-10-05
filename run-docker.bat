@@ -7,6 +7,7 @@ docker run ^
   --rm ^
   --name parking_server ^
   --network my_mqtt_net ^
+  --network mssql_network ^
   -v "%cd%:/app" ^
   --workdir "/app" ^
   parking_server ^
