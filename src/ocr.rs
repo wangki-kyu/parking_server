@@ -36,6 +36,7 @@ async fn call_ocr(ocr_sub: OcrSub, tx: UnboundedSender<PubMessage>) {
         .output().await.unwrap();
 
     let res_str = String::from_utf8(output.stdout).unwrap();
+    let res_str = res_str.trim().to_string();
     println!("{}", res_str);
 
     match tokio::fs::remove_file(&image_path).await {

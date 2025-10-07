@@ -139,10 +139,10 @@ async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) -> anyho
                     Some(SubMessage::OcrRequest(req))
                 },
                 #[allow(non_snake_case)]
-                "feeinfo" => {
+                "feeInfo" => {
                     println!("fee_info");
                     let req: FeeInfoSub = serde_json::from_str(&msg.payload_str().to_string()).unwrap();
-                    Some(SubMessage::FeelInfoRequest(req))
+                    Some(SubMessage::FeeInfoRequest(req))
                 },
                 _ => {
                     println!("wrong topic!");
@@ -198,13 +198,19 @@ async fn run_publish(host: String, mut rx: UnboundedReceiver<PubMessage>, tx_db:
 
                     cli.disconnect(None).await?;
 
-                    println!("finish to send!");
+                    println!("success ocr send!");
                 }
-                PubMessage::FeelInfoPub(feel_info_pub) => {
+                PubMessage::FeeInfoPub(fee_info_pub) => {
                     // FeelInfoPub
-                    
 
-                    // db 저장 및 인메모리 차량 데이터 삭제 
+                    cli_clone.connect(None).await?;
+                    let encoded = serde_json::to_string(fee_info_pub)?;
+                    let msg = paho_mqtt::Message::new("parking/response/feeInfo", encoded, paho_mqtt::QOS_1);
+                    cli.publish(msg).await?;
+
+                    cli.disconnect(None).await?;
+
+                    println!("success feeinfo send!");
                 }
             }
         }

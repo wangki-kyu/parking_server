@@ -97,12 +97,15 @@ async fn run_async_task(mut rx: UnboundedReceiver<AsyncMessage>, tx_bundle: Asyn
                                 }
                             }
                         }
-                        SubMessage::FeelInfoRequest(fee_info) => {
+                        SubMessage::FeeInfoRequest(fee_info) => {
                             // 1. ocr 처리 
                             // 2. ocr 에서 mqtt pub으로 번호를 보내주면 
                             // 정산 처리 관련 함수를 호출 해준다.
-                            
-                            println!("feel_info msg recv");
+                            tokio::spawn(async move {
+                                println!("feel_info msg recv");
+                                let fee_pub = car::calculate_parking_fee(fee_info.license_plate).await.unwrap();
+                                clone_tx_pub.send(PubMessage::FeeInfoPub(fee_pub)).unwrap();
+                            });
                         }
                     }
                 }
