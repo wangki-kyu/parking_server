@@ -1,4 +1,4 @@
-use std::{env, fs::File, io::Write};
+use std::{env, fs::File, io::Write, time::Instant};
 
 use base64::{engine::general_purpose, Engine};
 use chrono::Utc;
@@ -17,14 +17,17 @@ pub async fn run_ocr_task(mut rx: UnboundedReceiver<OcrSub>, tx_pub: UnboundedSe
         // 만약에 여기서 대기한다면 동기적으로 처리하는거랑 다름이 없음.
         // 따라서 하나의 task를 생성하는게 좋아보임. 
         tokio::spawn(async move {
+            let start = Instant::now();
             call_ocr(data, cloned_tx_pub).await;
+            let elapsed = Instant::now() - start;
+            println!("ocr 소요 시간: {}ms", elapsed.as_millis());
         });
     }
 }
 
 async fn call_ocr(ocr_sub: OcrSub, tx: UnboundedSender<PubMessage>) {
     // py path
-    let py_path = "/app/py/ocr_script.py";    // docker /app 
+    let py_path = "/app/py/ocr_script2.py";    // docker /app 
     let image_path = "/app/license_plates/target.jpg";
     let mut file = File::create(image_path).unwrap();
     let decoding_image = general_purpose::STANDARD.decode(ocr_sub.img).unwrap();
@@ -39,14 +42,15 @@ async fn call_ocr(ocr_sub: OcrSub, tx: UnboundedSender<PubMessage>) {
     let res_str = res_str.trim().to_string();
     println!("{}", res_str);
 
-    match tokio::fs::remove_file(&image_path).await {
-        Ok(_) => println!("success to remove image file"),
-        Err(e) => eprintln!("fail to remove file, e: {}", e),
-    }
+    // match tokio::fs::remove_file(&image_path).await {
+    //     Ok(_) => println!("success to remove image file"),
+    //     Err(e) => eprintln!("fail to remove file, e: {}", e),
+    // }
 
     // ocr 인식을 한 뒤, tx_pub으로 메시지를 보내준다.
     let request_time = Utc::now().timestamp();
     let ocr_pub = OcrPub::new(ocr_sub.gate_id, true, res_str, 84.2, request_time as u64);
+    // let ocr_pub = OcrPub::new(ocr_sub.gate_id, true, "10E1234".to_string(), 84.2, request_time as u64);
     let message = PubMessage::OcrPub(ocr_pub);
 
     println!("OcrPub: {:?}", message);

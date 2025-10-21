@@ -6,7 +6,7 @@ use serde::Serialize;
 use tokio::sync::mpsc::{UnboundedSender, UnboundedReceiver};
 use tokio::sync::Mutex;
 use crate::AsyncTxBundle;
-use crate::message::{AsyncMessage, FeeInfoSub, OcrSub, PubMessage, SubMessage};
+use crate::message::{AsyncMessage, FeeInfoSub, FeeResult, OcrSub, PubMessage, SubMessage};
 use crate::car::add_car;
 use crate::db::{insert_entry_car, DBMessage, InsertCarData};
 
@@ -122,7 +122,11 @@ async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) -> anyho
                 println!("Reconnected.");
                 continue;
             };
+            println!("msg topic: {}", msg.topic());
             let topic_split_vec = msg.topic().split("/").collect::<Vec<&str>>();
+            let tmp = topic_split_vec[1..=2].join("/");
+            let tmp = tmp.trim();
+            println!("{}", tmp);
 
             // last topic str parsing 
             let Some(topic_last_str) =  topic_split_vec.last() else {
@@ -132,17 +136,22 @@ async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) -> anyho
 
             println!("sub start!");
 
-            let sub_message = match *topic_last_str {
-                "ocr" => {
+            let sub_message = match tmp {
+                "request/ocr" => {
                     println!("ocr!");
                     let req: OcrSub = serde_json::from_str(&msg.payload_str().to_string()).unwrap();
                     Some(SubMessage::OcrRequest(req))
                 },
                 #[allow(non_snake_case)]
-                "feeInfo" => {
+                "request/feeInfo" => {
                     println!("fee_info");
                     let req: FeeInfoSub = serde_json::from_str(&msg.payload_str().to_string()).unwrap();
                     Some(SubMessage::FeeInfoRequest(req))
+                },
+                "request/feeResult" => {
+                    println!("fee_result");
+                    let req: FeeResult = serde_json::from_str(&msg.payload_str().to_string()).unwrap();
+                    Some(SubMessage::FeeResult(req))
                 },
                 _ => {
                     println!("wrong topic!");
@@ -151,7 +160,7 @@ async fn run_subscribe(host: String, tx: UnboundedSender<AsyncMessage>) -> anyho
             };
 
             let str = String::from_utf8_lossy(msg.payload());
-            println!("{:?}", str);
+            // println!("{:?}", str);
             // send tx with sub message
             if let Some(sub_message) = sub_message {
                  match cloned_tx.send(AsyncMessage::SubMessage(sub_message)) {
@@ -201,7 +210,7 @@ async fn run_publish(host: String, mut rx: UnboundedReceiver<PubMessage>, tx_db:
                     println!("success ocr send!");
                 }
                 PubMessage::FeeInfoPub(fee_info_pub) => {
-                    // FeelInfoPub
+                    // FeeInfoPub
 
                     cli_clone.connect(None).await?;
                     let encoded = serde_json::to_string(fee_info_pub)?;
@@ -228,13 +237,4 @@ async fn publish_data_to_topic(topic: &str) {
 }
 
 
-
-
-
-
-
-
-
-
-// hashmap 구조 
-// 차량 번호 키 - 
+// 켜진 시점부터 보내도록 

@@ -1,42 +1,30 @@
-FROM docker.io/pytorch/pytorch
+FROM paddlecloud/paddleocr:2.6-cpu-latest
 
-# if you forked EasyOCR, you can pass in your own GitHub username to use your fork
-# i.e. gh_username=myname
-ARG gh_username=JaidedAI
-ARG service_home="/home/EasyOCR"
+# 작업 디렉토리
+WORKDIR /app
 
-# Configure apt and install packages
-RUN apt-get update -y && \
+# rust 의존성 설치
+RUN apt-get update && \
     apt-get install -y \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libgl1-mesa-dev \
-    git \
-	curl \
+    curl \
     build-essential \
     libssl-dev \
     pkg-config \
-    # cleanup
-    && apt-get autoremove -y \
-    && apt-get clean -y \
-    && rm -rf /var/lib/apt/lists
-	
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    && rm -rf /var/lib/apt/lists/*
+
+# 2. Rust 설치 명령어 추가 (사용자 제공)
+# RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.86
+
+# 3. 환경 변수 설정 (사용자 제공)
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Clone EasyOCR repo
-RUN mkdir "$service_home" \
-    && git clone "https://github.com/$gh_username/EasyOCR.git" "$service_home" \
-    && cd "$service_home" \
-    && git remote add upstream "https://github.com/JaidedAI/EasyOCR.git" \
-    && git pull upstream master
+RUN python -m pip install paddlepaddle -i https://pypi.tuna.tsinghua.edu.cn/simple
+RUN python -m pip install paddleocr
+RUN python -c "from paddleocr import PaddleOCR; PaddleOCR(use_angle_cls=True, lang='korean').ocr('dummy.jpg', det=False, rec=False, cls=False)" || echo 'Dummy run for model cache complete'
 
-# Build
-RUN cd "$service_home" \
-    && python setup.py build_ext --inplace -j 4 \
-    && python -m pip install -e . 
-	
-RUN ["pip", "uninstall", "numpy", "-y"]	
-RUN ["pip", "install", "numpy==1.24.4"]
+# COPY my_ocr_script.py .
+# COPY input_images/ ./input_images/
+
+CMD ["python", "my_ocr_script.py"]
+

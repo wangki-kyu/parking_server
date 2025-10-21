@@ -13,6 +13,7 @@ use tokio::task::spawn_blocking;
 use mqtt::run_mqtt;
 use message::SubMessage;
 use message::AsyncMessage;
+use crate::car::add_car;
 use crate::message::{OcrPub, OcrSub, PubMessage};
 use ocr::run_ocr_task;
 use crate::db::{init_db_pool, insert_entry_car, DBMessage};
@@ -23,6 +24,10 @@ struct AsyncTxBundle {
     tx_ocr: UnboundedSender<OcrSub>,
     tx_db: UnboundedSender<DBMessage>,
     tx_async: UnboundedSender<AsyncMessage>,
+}
+
+struct AsyncBlockOn {
+
 }
 
 impl AsyncTxBundle {
@@ -73,6 +78,7 @@ async fn main() {
 async fn run_async_task(mut rx: UnboundedReceiver<AsyncMessage>, tx_bundle: AsyncTxBundle) {
     // async worker
     println!("async worker start!");
+    add_car("10E1234".to_string()).await;
     let _ = tokio::spawn(async move {
         println!("start async receiver");
         loop {
@@ -103,9 +109,13 @@ async fn run_async_task(mut rx: UnboundedReceiver<AsyncMessage>, tx_bundle: Asyn
                             // 정산 처리 관련 함수를 호출 해준다.
                             tokio::spawn(async move {
                                 println!("feel_info msg recv");
+                                println!("{:?}", fee_info);
                                 let fee_pub = car::calculate_parking_fee(fee_info.license_plate).await.unwrap();
                                 clone_tx_pub.send(PubMessage::FeeInfoPub(fee_pub)).unwrap();
                             });
+                        }
+                        SubMessage::FeeResult(fee_result) => {
+                            println!("{:?}", fee_result);
                         }
                     }
                 }
@@ -141,3 +151,4 @@ async fn db_async_worker(mut rx: UnboundedReceiver<DBMessage>, tx_bundle: AsyncT
 
 // ------- 정산 -----------
 //`
+

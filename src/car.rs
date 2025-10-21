@@ -14,7 +14,7 @@ static CAR_INFO_MAP: Lazy<Mutex<HashMap<String, CarInfo>>> = Lazy::new(|| {
     Mutex::new(HashMap::new())
 });
 
-const FEE_PRICE_PER_MIN: u64 = 500;
+const FEE_PRICE_PER_MIN: u64 = 50;
 
 #[derive(Debug, Default)]
 struct CarInfo {
@@ -51,6 +51,7 @@ pub async fn add_car(license_plate: String) {
 /// 차량 정산 로직 
 pub async fn calculate_parking_fee(license_plate: String) -> anyhow::Result<FeeInfoPub> {
     let mut map = CAR_INFO_MAP.lock().await;
+    println!("{:?}", map);
     let Some(car_info) = map.get(&license_plate) else {
         return Err(anyhow!("fail to get value by key [{}]", license_plate));
     };
@@ -63,7 +64,7 @@ pub async fn calculate_parking_fee(license_plate: String) -> anyhow::Result<FeeI
     let exit_time = Utc::now().timestamp();
     let total_in_time = exit_time - entry_time;
     
-    let fee = (total_in_time / 60) * FEE_PRICE_PER_MIN as i64;
+    let fee = total_in_time * FEE_PRICE_PER_MIN as i64;
     println!("총 주차 시간: {} 분입니다. 총 요금은 {}원 입니다.", total_in_time / 60 , fee);
     let fee_info_pub = FeeInfoPub {
         license_plate,

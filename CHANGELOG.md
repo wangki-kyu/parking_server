@@ -32,3 +32,7 @@
 
 ## 2025-10-07
 `+` Addition: 주차 요금 정산 기능 연동 
+
+## 2025-10-21
+`-` Fix: easyOCR -> paddleOCR로 변경
+`-` Fix: Docker Image 변경

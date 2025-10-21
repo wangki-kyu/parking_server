@@ -8,6 +8,7 @@ pub enum AsyncMessage {
 pub enum SubMessage {
     OcrRequest(OcrSub),
     FeeInfoRequest(FeeInfoSub),
+    FeeResult(FeeResult),
 }
 
 #[derive(Debug)]
@@ -28,6 +29,12 @@ pub struct OcrSub {
 #[derive(Deserialize, Debug)]
 pub struct FeeInfoSub {
     pub license_plate: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct FeeResult {
+    is_paid: bool,
+    license_plate: String,
 }
 
 // pub message 정의 
