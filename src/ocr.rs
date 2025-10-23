@@ -3,7 +3,14 @@ use std::{env, fs::File, io::Write, time::Instant};
 use base64::{engine::general_purpose, Engine};
 use chrono::Utc;
 use tokio::{process::Command, sync::mpsc::{UnboundedReceiver, UnboundedSender}};
-use crate::message::{OcrPub, OcrSub, PubMessage};
+use tonic::transport::Channel;
+use crate::{message::{OcrPub, OcrSub, PubMessage}, ocr::ocr::ocr_service_client::OcrServiceClient};
+
+use ocr::OcrRequest;
+
+pub mod ocr {
+    tonic::include_proto!("ocr");
+}
 
 pub async fn run_ocr_task(mut rx: UnboundedReceiver<OcrSub>, tx_pub: UnboundedSender<PubMessage>) {
     loop {
@@ -18,10 +25,52 @@ pub async fn run_ocr_task(mut rx: UnboundedReceiver<OcrSub>, tx_pub: UnboundedSe
         // 따라서 하나의 task를 생성하는게 좋아보임. 
         tokio::spawn(async move {
             let start = Instant::now();
-            call_ocr(data, cloned_tx_pub).await;
+            // call_ocr(data, cloned_tx_pub).await;
+            request_ocr(data, cloned_tx_pub).await;
             let elapsed = Instant::now() - start;
             println!("ocr 소요 시간: {}ms", elapsed.as_millis());
         });
+    }
+}
+
+pub async fn request_ocr(ocr_sub: OcrSub, tx: UnboundedSender<PubMessage>) {
+    // grpc 요청
+    //  -> base64로 decoding된 이미지 바이트 그대로 보내기.
+    // response PubMessage로 전송
+
+    println!("ocr 서버 연결 시도");
+    let addr = "http://ocr_server:50051";
+    let channel = Channel::from_static(addr)
+        .connect()
+        .await
+        .unwrap();
+        
+    let mut client = OcrServiceClient::new(channel);
+
+    // image bytes decoding
+    let decoded_bytes = general_purpose::STANDARD.decode(ocr_sub.img).unwrap();
+    let request = tonic::Request::new(
+        OcrRequest {
+            image_bytes: decoded_bytes,
+        }
+    );
+
+    println!("ocr 요청!");
+    let response = client.recognize_image(request).await.unwrap();
+    let license_plate = response.get_ref().license_plates.clone();
+    println!("ocr 응답 성공, 번호판 번호: {}", license_plate);
+
+    // PubMessage 생성 및 보내기
+    let request_time = Utc::now().timestamp();
+    let pub_message = PubMessage::OcrPub(OcrPub::new(ocr_sub.gate_id, true, license_plate, 87.1, request_time as u64));
+
+    match tx.send(pub_message) {
+        Ok(_) => {
+            println!("success to send message to pub receiver");
+        },
+        Err(e) => {
+            eprintln!("fail to send pub, err: {}", e);
+        },
     }
 }
 

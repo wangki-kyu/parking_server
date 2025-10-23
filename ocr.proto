@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package ocr;
+
+// OCR 요청 메시지
+message OCRRequest {
+	bytes image_bytes = 1;
+}
+
+// OCR 응답 메시지
+message OCRResponse {
+	string license_plates = 1;
+}
+
+service OCRService {
+	rpc RecognizeImage (OCRRequest) returns (OCRResponse);
+}

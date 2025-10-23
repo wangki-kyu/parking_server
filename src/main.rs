@@ -78,7 +78,6 @@ async fn main() {
 async fn run_async_task(mut rx: UnboundedReceiver<AsyncMessage>, tx_bundle: AsyncTxBundle) {
     // async worker
     println!("async worker start!");
-    add_car("10E1234".to_string()).await;
     let _ = tokio::spawn(async move {
         println!("start async receiver");
         loop {
@@ -140,15 +139,3 @@ async fn db_async_worker(mut rx: UnboundedReceiver<DBMessage>, tx_bundle: AsyncT
         }
     }
 }
-
-// ------- 번호판 -------
-// 1. 번호판을 Request 받음
-// 2. OCR 객체인식을 하여 차량 번호 전송.
-
-// ------- 차량 데이터 요청 -------
-// request: 차량 데이터 요청
-// response: 차량 데이터 응답
-
-// ------- 정산 -----------
-//`
-

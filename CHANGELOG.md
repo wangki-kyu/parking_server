@@ -36,3 +36,8 @@
 ## 2025-10-21
 `-` Fix: easyOCR -> paddleOCR로 변경
 `-` Fix: Docker Image 변경
+
+## 2025-10-23
+`*` Refactor: python script -> ocr python grpc server로 변경
+    tonic crate 사용하여 proto file code gen to rust file
+`-` Fix: Docker base Image 변경 

@@ -1,10 +1,7 @@
-use std::collections::HashMap;
 use std::{env, process};
 use std::time::Duration;
 use anyhow::anyhow;
-use serde::Serialize;
 use tokio::sync::mpsc::{UnboundedSender, UnboundedReceiver};
-use tokio::sync::Mutex;
 use crate::AsyncTxBundle;
 use crate::message::{AsyncMessage, FeeInfoSub, FeeResult, OcrSub, PubMessage, SubMessage};
 use crate::car::add_car;
